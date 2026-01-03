@@ -3,109 +3,99 @@ from Error import SyntaxError, raise_
 from Tokens import *
 
 class Lexer:
-    @staticmethod
-    def generate_tokens(code: str):
-        # ---------------- Variables---------------------
-        tokens = []
-        count = 0
-        code = code.replace('    ', '\t')
-        basic_characters = {'\n':NEWLINE, '\t': TAB,
+    def __init__(self):
+        self.char: str = ''
+        self.code: str = None
+        self.index: int = -1
+        self.tokens: list[Token] = list()
+        self.basic_characters = {'\n':NEWLINE, '\t': TAB,
                             '=': EQUAL, '+': PLUS, '-': MINUS, '*': MUL, '^':'CARAT',
                             '/': DIV, '#':HASH, '%':MOD, '&':AND, '|': OR, '!': NOT,
                             '(': LEFT_PAREN, ')': RIGHT_PAREN, '[': LEFT_BRACE, ']': RIGHT_BRACE,
                             '{': LEFT_SET, '}': RIGHT_SET, ':': COLON, ';': END, '$':VARIABLE,'@':LABEL,
                             '>': GREATER, '<': LESSER
                             }
-        alpha = 'abcdefghijklmnopqrstuvwxyz' + 'abcdefghijklmnopqrstuvwxyz'.upper()
-        numeric = '0123456789'
-        alpha_numeric = alpha + numeric + '_'
+        self.alpha = 'abcdefghijklmnopqrstuvwxyz' + 'abcdefghijklmnopqrstuvwxyz'.upper()
+        self.numeric = '0123456789'
+        self.alpha_numeric = set(self.alpha + self.numeric + '_')
+        self.alpha = set(self.alpha)
+        self.numeric = set(self.numeric)
 
-        while count < len(code):
-            if code[count] in basic_characters:
-                tokens.append(Token(basic_characters.get(code[count])))
+    def advance(self):
+        self.index += 1 if self.index < len(self.code) else 0
+        self.char = self.code[self.index] if self.index < len(self.code) else None
 
-            elif code[count] == '"' or code[count] == "'":
-                check = '"' if code[count] == '"' else code[count]
-                string = ''
-                run = True
-                count += 1
-                while run:
-                    if count >= len(code):
-                        raise_(SyntaxError('Console','1',f'Missing quotation({check}) mark', code))
-                    if code[count] == check:
-                        break
-                    string += code[count]
-                    count += 1
-                tokens.append(Token(STRING,string))
-                count += 1
-                continue
+    def generate_tokens(self, code: str) -> list[Token]:
+        # ---------------- Variables---------------------
+        self.tokens = []
+        self.code = code.replace('    ', '\t')
 
-            elif code[count] in alpha:
-                string = code[count]
-                count = count + 1
-                while count < len(code) and code[count] in alpha_numeric :
-                    string += code[count]
-                    count += 1
-                tokens.append(Token(DTYPE if string in DTYPES else KEYWORD if string in KEYWORDS else IDENTIFIER, string))
-                continue
+        # ---------------- Looping---------------------
+        self.advance()
+        while self.char:
+            match self.char:
+                case char if char in self.basic_characters:
+                    self.tokens.append(Token(self.basic_characters.get(self.char)))
+                case '"' | "'":
+                    end = self.code.find('"' if self.char == '"' else "'", self.index+1)
+                    if end == -1:
+                        raise_(SyntaxError('Console','1',f'Missing quotation({self.char}) mark', code))
+                    self.tokens.append(Token(type_= STRING, value= self.code[self.index+1:end]))
+                    self.index = end
+                case char if char in self.alpha:
+                    start = self.index
+                    while self.char and self.char in self.alpha_numeric:
+                        self.advance()
+                    self.tokens.append(Token(type_=IDENTIFIER, value = code[start:self.index]))
+                    self.index -= 1
+                case char if char in self.numeric:
+                    start = self.index
+                    dot_count = 0
+                    while self.char and (self.char in self.numeric or self.char == '.'):
+                        if self.char == '.':
+                            dot_count += 1
+                            if dot_count > 1:
+                                raise_(SyntaxError('Console','1',f'Invalid float format; Double floating point is not allowed', code))
+                        self.advance()
+                    token_type = FLOAT if dot_count == 1 else INTEGER
+                    self.tokens.append(Token(type_=token_type, value=code[start:self.index]))
+                    self.index -= 1
+            self.advance()
 
-            elif code[count] in numeric:
-                string = code[count]
-                count = count + 1
-                while count < len(code) and (code[count] in numeric or code[count] == '.') :
-                    string += code[count]
-                    count += 1
-                if string.find('.') != -1:
-                    tokens.append(Token(FLOAT, string))
-                    continue
-                tokens.append(Token(INTEGER,string))
-                continue
-
-            count += 1
-
-        return Lexer.compress(tokens)
+        return Lexer.compress(self.tokens)
 
     @staticmethod
     def compress(tokens:list[Token]):
+        def make_replacer(new_type):
+            return lambda tokens, idx, pop_tok: (
+                pop_tok.append(idx),
+                setattr(tokens[idx - 1], "type", new_type)
+            )
+
+        replacers = {
+            Tokens.EQUAL: make_replacer(Tokens.DEQUAL),
+            Tokens.GREATER: make_replacer(Tokens.GEQUAL),
+            Tokens.LESSER: make_replacer(Tokens.LEQUAL),
+            Tokens.COLON: make_replacer(Tokens.REASSIGN),
+            Tokens.NOT: make_replacer(Tokens.NEQUAL),
+        }
+
         pop_tok = []
         for index, token in enumerate(tokens):
             if token.type == Tokens.EQUAL and index > 0:
-                match tokens[index - 1].type:
-                    case Tokens.EQUAL:
-                        pop_tok.append(index)
-                        tokens[index-1].type = Tokens.DEQUAL
-                    case Tokens.GREATER:
-                        pop_tok.append(index)
-                        tokens[index-1].type = Tokens.GEQUAL
-                    case Tokens.LESSER:
-                        pop_tok.append(index)
-                        tokens[index-1].type = Tokens.LEQUAL
-                    case Tokens.PLUS:
-                        pop_tok.append(index)
-                        tokens[index-1].type = Tokens.PEQUAL
-                    case Tokens.MINUS:
-                        pop_tok.append(index)
-                        tokens[index-1].type = Tokens.MEQUAL
-                    case Tokens.MUL:
-                        pop_tok.append(index)
-                        tokens[index-1].type = Tokens.MULEQUAL
-                    case Tokens.COLON:
-                        pop_tok.append(index)
-                        tokens[index-1].type = Tokens.REASSIGN
-                    case Tokens.MOD:
-                        pop_tok.append(index)
-                        tokens[index-1].type = Tokens.MODEQUAL
-                    case Tokens.DIV:
-                        pop_tok.append(index)
-                        tokens[index-1].type = Tokens.DIVEQUAL
-                    case Tokens.NOT:
-                        pop_tok.append(index)
-                        tokens[index-1].type = Tokens.NEQUAL
+                prev_type = tokens[index - 1].type
+                if prev_type in replacers:
+                    replacers[prev_type](tokens, index, pop_tok)
+
             if token.type == Tokens.PLUS and index > 0:
-                match tokens[index - 1].type:
-                    case Tokens.PLUS:
-                        pop_tok.append(index)
-                        tokens[index - 1].type = Tokens.INCREMENT
-        for p in pop_tok:
+                if tokens[index - 1].type == Tokens.PLUS:
+                    pop_tok.append(index)
+                    tokens[index - 1].type = Tokens.INCREMENT
+            if token.type == Tokens.MINUS and index > 0:
+                if tokens[index - 1].type == Tokens.MINUS:
+                    pop_tok.append(index)
+                    tokens[index - 1].type = Tokens.DECREMENT
+
+        for p in pop_tok[::-1]:
             tokens.pop(p)
         return tokens
