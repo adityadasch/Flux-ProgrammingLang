@@ -126,6 +126,6 @@ show sum;
 + #### No functions or return statements yet.
 
 # Running
-To run a .tdy file run
+To run a .flux file run
 `<path-to-.exe> <path-to-file>`
 # Happy coding!
