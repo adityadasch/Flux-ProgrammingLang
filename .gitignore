@@ -5,3 +5,5 @@ venv/
 *.log
 *.pyc
 *.exe
+*.*~
+*.swp
