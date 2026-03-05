@@ -1,4 +1,4 @@
-#include allocator.h
+#include "allocator.h"
 
 extern int block_size = 512;
 int totalBlocks = 1024;
@@ -34,7 +34,7 @@ void findFirstFreeIndex(int blockId,int payLoad, int *memoryIndex){
 				}
 			}
 			if(flag == 1){
-				memoryIndex = index;
+				*memoryIndex = index;
 				return;
 			}
 		}		
@@ -48,7 +48,7 @@ int AllocateMemory(int blockId, byte value[]){
 		return 0;
 	}
 	int memoryIndex = 0;
-	int size = sizeof(value)/sizeof(value[0]),;
+	int size = sizeof(value)/sizeof(value[0]);
 	findFirstFreeIndex(blockId,size, &memoryIndex);
 	for(int i = 0; i < size; i++){
 		memory[memoryIndex+i] = value[i];
