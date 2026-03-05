@@ -19,7 +19,7 @@ extern byte *memory;
 // Function prototypes
 DLL_EXPORT int CreateMemory();
 DLL_EXPORT void DestroyMemory();
-DLL_EXPORT bool AllocateMemory(int blockId, byte value);
-DLL_EXPORT bool FreeMemory(int byteAddr[2]);
+DLL_EXPORT bool AllocateMemory(int blockId, byte value[]);
+DLL_EXPORT bool FreeMemory(int byteAddr[2], int byteCount);
 
 #endif

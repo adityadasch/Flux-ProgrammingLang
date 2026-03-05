@@ -21,7 +21,7 @@ void findFirstFreeIndex(int blockId,int payLoad, int *memoryIndex){
 	// Takes a blockId and finds the position in the block with payLoad number of free spaces
 	int blockIndex = blockId * block_size;
 	int flag = 0;
-	for (index = blockIndex; index<blockIndex+block_size, index++){
+	for (int index = blockIndex; index<blockIndex+block_size, index++){
 		if(memory[index] == 0){
 			// Check if the byte at index is free
 			flag = 1;
