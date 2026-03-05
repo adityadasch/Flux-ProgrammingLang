@@ -4,3 +4,6 @@ venv/
 .vscode/
 *.log
 *.pyc
+*.exe
+*.*~
+*.swp
