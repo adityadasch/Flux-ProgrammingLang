@@ -1,9 +1,11 @@
 #include "allocator.h"
 
-extern int block_size = 512;
-int totalBlocks = 1024;
-int reservedBlocks = 12;
-int usableBlocks = totalBlocks - reservedBlocks;
+const int block_size = 512;
+const int totalBlocks = 1024;
+const int reservedBlocks = 12;
+const int usableBlocks = totalBlocks - reservedBlocks;
+
+byte *memory;
 
 int CreateMemory(){
 	memory = (byte *)calloc(0, 1024 * block_size * sizeof(byte));
@@ -21,7 +23,7 @@ void findFirstFreeIndex(int blockId,int payLoad, int *memoryIndex){
 	// Takes a blockId and finds the position in the block with payLoad number of free spaces
 	int blockIndex = blockId * block_size;
 	int flag = 0;
-	for (int index = blockIndex; index<blockIndex+block_size, index++){
+	for (int index = blockIndex; index<blockIndex+block_size; index++){
 		if(memory[index] == 0){
 			// Check if the byte at index is free
 			flag = 1;
@@ -42,18 +44,17 @@ void findFirstFreeIndex(int blockId,int payLoad, int *memoryIndex){
 	
 }
 
-int AllocateMemory(int blockId, byte value[]){
+byte* AllocateMemory(int blockId, byte value[], size_t dataSize){
 	// Sets the first postion with payLoad(number of bytes) amount of free space with value
 	if (blockId > usableBlocks){
-		return 0;
+		return memory+(dataSize-1);
 	}
 	int memoryIndex = 0;
-	int size = sizeof(value)/sizeof(value[0]);
-	findFirstFreeIndex(blockId,size, &memoryIndex);
-	for(int i = 0; i < size; i++){
+	findFirstFreeIndex(blockId,dataSize, &memoryIndex);
+	for(int i = 0; i < dataSize; i++){
 		memory[memoryIndex+i] = value[i];
 	}
-	return 1;
+	return (memory+memoryIndex);
 }
 
 int FreeMemory(int byteAddr[2], int byteCount){
@@ -61,4 +62,21 @@ int FreeMemory(int byteAddr[2], int byteCount){
 	void *start = memory+(byteAddr[0]*block_size)+(byteAddr[1]);
 	memset(start, 0, byteCount);
 	return 1;
+}
+
+byte* RetrieveData(int byteAddr[2], int byteCount){
+	byte *start = memory+(byteAddr[0]*block_size)+(byteAddr[1]);
+	byte *data = malloc(sizeof(byte)*byteCount);
+	for(int i = 0; i<byteCount; i++){
+		data[i] = *(start + i);
+	}
+	return data;
+}
+
+byte* RetrieveDataFromPtr(byte* ptr, int byteCount){
+	byte *data = malloc(sizeof(byte)*byteCount);
+	for(int i = 0; i<byteCount; i++){
+		data[i] = *(ptr + i);
+	}
+	return data;
 }
