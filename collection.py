@@ -42,8 +42,9 @@ class TokenType(Enum):
     GREATER_THAN_OR_EQUAL = 30
     QUOTES = 31
     DOUBLE_QUOTES = 32
+    SYMBOL = 33
 
-    IGNORE = 33
+    IGNORE = 34
 
 
 class Dictionary:
