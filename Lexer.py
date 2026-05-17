@@ -1,5 +1,5 @@
-from Tokens import Token
-from collection import Dictionary,CollectionType, TokenType
+from typing import Tuple
+from collection import Dictionary,CollectionType, TokenType, Token
 
 class Lexer:
     def __init__(self, code:str):
@@ -35,7 +35,7 @@ class Lexer:
         else:
             return self.input[self.read_position]
 
-    def generate_tokens(self):
+    def generate_tokens(self) -> list[Token]:
         # Implement tokenization logic here
         while self.ch is not None:
             if self.ch == '#':
@@ -45,10 +45,13 @@ class Lexer:
                 continue
             elif self.ch in Dictionary.symbols:
                 token_type = Dictionary.symbols[self.ch]
-                self.token.append(Token(token_type))
+                self.token.append(Token(token_type, self.ch, CollectionType.SYMBOL))
             elif self.ch.isalpha():
                 identifier = self.read_identifier()
-                self.token.append(Token(TokenType.IDENTIFIER, identifier))
+                if identifier in Dictionary.keywords:
+                    self.token.append(Token(TokenType.KEYWORD, identifier))
+                else:
+                    self.token.append(Token(TokenType.IDENTIFIER, identifier))
                 continue
             elif self.ch.isdigit():
                 number = self.read_number()
@@ -56,6 +59,7 @@ class Lexer:
                 continue
 
             self.read_next_char()
+        return self.compress(self.token)
 
     def read_identifier(self) -> str:
         """Reads an identifier and returns it as a string."""
@@ -76,6 +80,40 @@ class Lexer:
                     break
         return self.input[start_position:self.position]
 
-lex = Lexer(input(">"))
-lex.generate_tokens()
-print(lex.token)
+    def compress(self, tokens: list[Token]) -> list[Token]:
+        """Compresses consecutive tokens of the same type into a single token with a combined value."""
+        if not tokens:
+            return []
+
+        compressed_tokens = [tokens[0]]
+        inString = False
+        quoteIndex = None
+
+        for index, token in enumerate(tokens[1:]):
+            if token.type == TokenType.QUOTES or token.type == TokenType.DOUBLE_QUOTES:
+                inString = not inString
+                if inString:
+                    quoteIndex = len(compressed_tokens)
+                else:
+                    compressed_tokens[quoteIndex] = Token(TokenType.STRING, ''.join(t.value for t in compressed_tokens[quoteIndex:]), CollectionType.STRING)
+                    compressed_tokens = compressed_tokens[:quoteIndex+1]
+            else:
+                if token.value is not None and token.value in ('true', 'false'):
+                    token = Token(TokenType.BOOLEAN, token.value)
+                compressed_tokens.append(token)
+        return compressed_tokens
+
+
+    @staticmethod
+    def chop(tokens: list[Token]) -> Tuple[Tuple[Token,...], ...]:
+        """Returns token list as a list with list of tokens between each semicolon."""
+        chopped:list[tuple[Token,...]] = []
+        current:list[Token] = []
+        for token in tokens:
+            if token.type == TokenType.SEMICOLON:
+                current.append(token)
+                chopped.append(tuple(current))
+                current.clear()
+            else:
+                current.append(token)
+        return tuple(chopped)
